@@ -211,7 +211,7 @@ module Cask
       return false if upgradable_casks.empty?
 
       cask_upgrades = upgradable_casks.map do |(old_cask, new_cask)|
-        "#{new_cask.full_name} #{old_cask.version} -> #{new_cask.version}"
+        "#{new_cask.full_name} #{old_cask.displayed_version} -> #{new_cask.version}"
       end
       summary_upgrades&.concat(cask_upgrades) if dry_run
       summary_deprecated&.concat(upgradable_casks.filter_map do |(_, new_cask)|
@@ -389,7 +389,7 @@ module Cask
 
       begin
         oh1 "Upgrading #{Formatter.identifier(old_cask)}"
-        puts "  #{old_cask.version} -> #{new_cask.version}"
+        puts "  #{old_cask.displayed_version} -> #{new_cask.version}"
 
         # Start new cask's installation steps
         new_cask_installer.prelude

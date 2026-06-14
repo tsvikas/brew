@@ -415,6 +415,36 @@ RSpec.describe Cask::Cask, :cask do
       end
     end
 
+    describe "#displayed_version" do
+      let(:dir) { Pathname(mktmpdir) }
+      let(:cask_file) { dir/"auto-updates-bundle-check.rb" }
+      let(:artifacts) { ['app "MyFancyApp.app"'] }
+
+      it "returns the recorded version for a non-auto-updating cask" do
+        expect(Cask::CaskLoader.load("local-caffeine").displayed_version).to eq("1.2.3")
+      end
+
+      it "prefers the installed bundle short version for an auto-updating cask" do
+        cask = write_auto_updates_cask(cask_file, version: "2.61", artifacts:)
+        write_info_plist(cask.config.appdir/"MyFancyApp.app", short_version: "2.59", bundle_version: "2059")
+
+        expect(cask.displayed_version).to eq("2.59")
+      end
+
+      it "falls back to the recorded version when the bundle cannot be read" do
+        cask = write_auto_updates_cask(cask_file, version: "2.61", artifacts:)
+
+        expect(cask.displayed_version).to eq("2.61")
+      end
+
+      it "falls back to the recorded version when the bundle reports a known-bad version" do
+        cask = write_auto_updates_cask(cask_file, version: "2.61", artifacts:)
+        write_info_plist(cask.config.appdir/"MyFancyApp.app", short_version: "0.0", bundle_version: "0.0")
+
+        expect(cask.displayed_version).to eq("2.61")
+      end
+    end
+
     describe ":latest casks" do
       let(:cask) { described_class.new("basic-cask") }
 

@@ -361,6 +361,35 @@ module Cask
       bundle_version&.version
     end
 
+    # The installed app bundle's short and long versions, read from its `Info.plist`.
+    # Values Homebrew can't trust (an unreadable bundle, or the sentinel "0"/"0.0"
+    # some apps ship) are normalized to `nil`.
+    sig { returns([T.nilable(String), T.nilable(String)]) }
+    def installed_bundle_versions
+      short_version = bundle_short_version
+      long_version = bundle_long_version
+      short_version = nil if AUTO_UPDATES_BAD_BUNDLE_VERSIONS.include?(short_version)
+      long_version = nil if AUTO_UPDATES_BAD_BUNDLE_VERSIONS.include?(long_version)
+      [short_version, long_version]
+    rescue ErrorDuringExecution
+      [nil, nil]
+    end
+
+    # The version to display as currently installed, e.g. in `brew upgrade` prompts.
+    #
+    # Auto-updating apps can update themselves in place, bumping the bundle's
+    # `CFBundleShortVersionString` past the version Homebrew recorded at install time.
+    # When that happens the recorded version is misleading, so prefer the actual
+    # installed bundle short version (the same source `auto_updates_bundle_outdated?`
+    # trusts), falling back to the recorded version when the bundle is unavailable.
+    sig { returns(T.nilable(String)) }
+    def displayed_version
+      recorded_version = version&.to_s
+      return recorded_version if !auto_updates || version&.latest?
+
+      installed_bundle_versions.first.presence || recorded_version
+    end
+
     sig { returns(Tab) }
     def tab
       Tab.for_cask(self)
@@ -738,14 +767,7 @@ module Cask
 
       tap_short_version = version.csv.first.to_s.presence || version.to_s
 
-      begin
-        installed_short_version = bundle_short_version
-        installed_bundle_version = bundle_long_version
-      rescue ErrorDuringExecution
-        return false
-      end
-      installed_bundle_version = nil if AUTO_UPDATES_BAD_BUNDLE_VERSIONS.include?(installed_bundle_version)
-      installed_short_version = nil if AUTO_UPDATES_BAD_BUNDLE_VERSIONS.include?(installed_short_version)
+      installed_short_version, installed_bundle_version = installed_bundle_versions
       return false if installed_short_version.nil? && installed_bundle_version.nil?
 
       # Some apps split a cask version like 2.61-2057 across the short

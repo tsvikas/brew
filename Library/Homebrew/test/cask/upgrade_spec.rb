@@ -150,6 +150,21 @@ RSpec.describe Cask::Upgrade, :cask do
         end
       end
 
+      it 'shows the installed bundle version, not the recorded version, for "auto_updates true" casks' do
+        # The app self-updated in place from the recorded 2.57 to 2.59 without
+        # Homebrew's knowledge, so the prompt should show 2.59 as the "from" version.
+        write_info_plist(auto_updates_path, short_version: "2.59", bundle_version: "2059")
+
+        expect(described_class).not_to receive(:upgrade_cask)
+        expect(described_class).to receive(:show_upgrade_summary) do |cask_upgrades, dry_run:|
+          expect(dry_run).to be(true)
+          expect(cask_upgrades).to include("auto-updates 2.59 -> 2.61")
+          expect(cask_upgrades.grep(/auto-updates 2\.57/)).to be_empty
+        end
+
+        described_class.upgrade_casks!(dry_run: true, args:)
+      end
+
       it 'excludes "auto_updates true" casks when the installed bundle matches the tap version' do
         write_info_plist(auto_updates_path, short_version: "2.61", bundle_version: "2061")
 
